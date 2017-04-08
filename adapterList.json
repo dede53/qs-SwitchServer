@@ -1,0 +1,11 @@
+{
+	"date": "",
+	"arduino":{
+		"version":"0.0.1",
+		"description":"Remotecontrol for an arduino.",
+	},
+	"url":{
+		"version":"0.0.1",
+		"description":"provide HTTP GET to controle some services"
+	}
+}
