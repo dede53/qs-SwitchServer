@@ -1,0 +1,19 @@
+{
+  "name": "switchserver0.3",
+  "version": "0.0.3",
+  "main": "adapter.js",
+  "scripts": {
+    "start": "node ./index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin" : {
+    "switchserver" : "./adapter.js"
+  },
+  "author": "dede53",
+  "license": "ISC",
+  "description": "SmartHome-Software",
+  "dependencies": {
+    "body-parser": "^1.15.2",
+    "express.io": "^1.1.13"
+  }
+}
