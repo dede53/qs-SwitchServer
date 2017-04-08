@@ -1,11 +1,39 @@
 {
-	"date": "",
+	"date": "1491609600",
 	"arduino":{
 		"version":"0.0.1",
-		"description":"Remotecontrol for an arduino.",
+		"description":"Remotecontrol for an arduino."
 	},
 	"url":{
 		"version":"0.0.1",
 		"description":"provide HTTP GET to controle some services"
+	},
+	"ping":{
+		"version":"0.0.1",
+		"description":"provide Ping functions"
+	},
+	"onewire":{
+		"version":"0.0.1",
+		"description":"read onewire sensors"
+	},
+	"pushbullet":{
+		"version":"0.0.1",
+		"description":"add pushbullet support"
+	},
+	"exec":{
+		"version":"0.0.1",
+		"description":"allow you to execute commands on the commandline"
+	},
+	"hombot":{
+		"version":"0.0.1",
+		"description":"put a hombot into quickswitch"
+	},
+	"fritzbox":{
+		"version":"0.0.1",
+		"description":"add support for a fritzbox"
+	},
+	"connair":{
+		"version":"0.0.1",
+		"description":"remote controle a connair"
 	}
 }
