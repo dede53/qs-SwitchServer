@@ -182,7 +182,7 @@ function action(data){
 }
 
 function downloadAdapterList(callback){
-	http.get('https://raw.githubusercontent.com/dede53/qs-arduino/master/package.json', function(error, response, body){
+	http.get('https://raw.githubusercontent.com/dede53/qs-SwitchServer/master/adapterList.json', function(error, response, body){
 		if(error){
 			console.log("Die Adapter Liste konnte nicht herrunter geladen werden!");
 			console.log(error);
