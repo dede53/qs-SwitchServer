@@ -1,12 +1,12 @@
 var express					=	require('express.io');
 var app						=	express().http().io();
-var fork					=	require('child_process').fork;
+var child_process			=	require('child_process');
 var bodyParser				=	require('body-parser');
 var http					=	require('request');
+var async 					= 	require('async');
 var adapterLib 				=	require('./adapter-lib.js');
 var status					=	{};
 var adapter					=	new adapterLib('adapter');
-	adapter.settings 		=	process.argv[2];
 var plugins					=	{};
 var fs 						=	require('fs');
 var adapterFunctions		=	require('../app/functions/adapter.js');
@@ -25,9 +25,21 @@ app.get('/adapterList', function(req, res){
 	});
 });
 
+app.get('/status', function(req, res){
+	// getAdapterList(function(data){
+		res.send(200);
+		console.log(status);
+	// });
+});
+
 app.io.route('get', {
 	"status": function(req){
 		req.io.emit('status', status);
+	},
+	"adapterList": function(req){
+		getAdapterList(function(data){
+			req.io.emit('adapterList', data);
+		});
 	}
 });
 
@@ -38,27 +50,45 @@ app.io.route('adapter', {
 		});
 	},
 	remove:function(req){
-		adapterFunctions.remove(req.data, function(response){});
+		remove(req.data, function(response){
+			status.adapter[req.data].status.status = response;
+			req.io.emit('status', status);
+		});
 	},
 	install:function(req){
-		adapterFunctions.install(req.data, function(response){});
+		install(req.data, function(response){
+			setTimeout(function(){
+				status.adapter[req.data].status.status = response;
+				req.io.emit('status', status);
+			}, 5000);
+		});
 	},
 	restart:function(req){
 		restart(req.data, function(response){
-			status.adapter[req.data].status = response;
+			status.adapter[req.data].status.status = response;
 			req.io.emit('status', status);
 		});
 	},
 	start:function(req){
 		start(req.data, function(response){
-			status.adapter[req.data].status = response;
+			status.adapter[req.data].status.status = response;
 			req.io.emit('status', status);
 		});
 	},
 	stop:function(req){
 		stop(req.data, function(response){
-			status.adapter[req.data].status = response;
+			status.adapter[req.data].status.status = response;
 			req.io.emit('status', status);
+		});
+	},
+	saveSettings: function(req){
+		saveSettings(req.data, function(response){
+			if(response == 200){
+				restart(req.data.name, function(response){
+					status.adapter[req.data.name].status.status = response;
+					req.io.emit('status', status);
+				});
+			}
 		});
 	}
 });
@@ -78,18 +108,46 @@ if(!fs.existsSync(__dirname + "/log")){
 	});
 }
 
-status.adapter				= {};
+status.adapter 					=	{};
 
-// fs.readdir("./adapter",function(err, files){
-fs.readdir("./SwitchServer/adapter",function(err, files){
-	files.forEach(function(name){
-		status.adapter[name]		= {};
-		status.adapter[name].name	= name;
-		start(name, function(response){
-			status.adapter[name].status = response;
+getAdapterList(function(data){
+	fs.readdir("./SwitchServer/adapter",function(err, files){
+		for(var index in data.adapter) {
+			status.adapter[index]							=	{};
+			status.adapter[index].info						=	data.adapter[index];
+			status.adapter[index].info.name					=	index;
+			status.adapter[index].status					=	new adapterStatus();
+		}
+		files.forEach(function(name){
+			start(name, function(response){
+				status.adapter[name].status.status = response;
+			});
 		});
 	});
 });
+
+/******************************************
+{
+	info:{
+		name:"",
+		version:"",
+		shortDescription:"",
+		description:"",
+	},
+	status:{
+		status:"",
+		pid:"",
+		statusMessage:"",
+		installedVersion:""
+	},
+	settings:{
+		loglevel:"",
+		arduinos:[],
+
+	}
+}
+
+******************************************/
 
 function restart(name, callback){
 	stop(name, function(status){
@@ -103,8 +161,8 @@ function restart(name, callback){
 }
 
 function start(name, callback){
-	if(plugins[name]){
-		console.log(name + " läuft bereits!");
+	if(plugins[name] && plugins[name].running){
+		adapter.log.info(name + " läuft bereits!");
 	}else{
 		try{
 			var name					= name.toLowerCase();
@@ -112,37 +170,48 @@ function start(name, callback){
 			var path					= __dirname + '/adapter/' + name + "/index.js";
 			var debugFile				= __dirname + '/log/debug-' + name + '.log';
 			plugins[name].log_file		= fs.createWriteStream( debugFile, {flags : 'w', encoding: 'utf8'});
-			plugins[name].fork			= fork(path);
-			status.adapter[name].pid	= plugins[name].fork.pid;
+			plugins[name].fork			= child_process.fork(path);
 
+			status.adapter[name].status.pid = plugins[name].fork.pid; 
+			status.adapter[name].status.statusMessage = "";
 			plugins[name].fork.on('message', function(response) {				
 				if(response.log){
+					adapter.log.info(response.log);
 					plugins[name].log_file.write(new Date() +":"+ response.log.toString() + '\n');
 				}
 				if(response.setVariable){
-					console.log(response.setVariable);
 					process.send(response);
 				}
 				if(response.statusMessage){
-					status.adapter[name].statusMessage = response.statusMessage;
+					status.adapter[name].status.statusMessage = response.statusMessage;
+					app.io.broadcast('status', status);
 					plugins[name].log_file.write(new Date() +":"+ response.statusMessage.toString() + '\n');
+				}
+				if(response.settings){
+					status.adapter[name].settings 					=	response.settings;
+					status.adapter[name].status.installedVersion	=	response.settings.version;
 				}
 			});
 			plugins[name].fork.on('error', function(data) {
-				console.log("ERROR");
-				console.log(data.toString());
+				status.adapter[name].status.pid = undefined;
+				status.adapter[name].status.statusMessage = "Der Adapter ist abgestürzt!";
+				plugins[name].log_file.write(new Date() +": Der Adapter ist abgestürzt! error\n");
+				adapter.log.error(data.toString());
 				plugins[name].log_file.write(new Date() +":"+ data.toString() + '\n');
 			});
 			plugins[name].fork.on('disconnect', function() {
-				// plugins[name] = undefined;
-				// console.log("DISCONNECT");
+				// status.adapter[name].status.pid = undefined;
+				// status.adapter[name].status.statusMessage = "Der Adapter ist abgestürzt!";
+				// plugins[name].log_file.write(new Date() +": Der Adapter ist abgestürzt!\n");
 			});
 			plugins[name].fork.on('close', function() {
-				// plugins[name] = undefined;
-				// console.log("CLOSE");
+				// status.adapter[name].status.pid = undefined;
+				// status.adapter[name].status.statusMessage = "Der Adapter ist abgestürzt! close";
+				// plugins[name].log_file.write(new Date() +": Der Adapter ist abgestürzt!\n");
 			});
 			plugins[name].log_file.write(new Date() +": Der Adapter wurde gestartet!\n");
-			console.log("Adapter "+ name +" wurde gestartet");
+			adapter.log.info("Adapter "+ name +" wurde gestartet");
+			plugins[name].running = true;
 			callback("gestartet");
 		}catch(e){
 			adapter.log.error(e);
@@ -155,12 +224,14 @@ function start(name, callback){
 function stop(name, callback){
 	try{
 		plugins[name].fork.kill('SIGHUP');
-		console.log(name + " wurde gestoppt");
 		plugins[name].log_file.write(new Date() +": Der Adapter wurde gestoppt!\n");
-		plugins[name] = undefined;
+		plugins[name].running = false;
+		adapter.log.info(name + " wurde gestoppt");
+		status.adapter[name].status.pid = undefined;
+		status.adapter[name].status.statusMessage = undefined;
 		callback("gestoppt");
 	}catch(e){
-		console.log(e);
+		adapter.log.error(e);
 		callback(404);
 	}
 }
@@ -181,17 +252,41 @@ function action(data){
 	}
 }
 
+function saveSettings(data, callback){
+	fs.writeFile(__dirname + "/settings/" + data.name + ".json", JSON.stringify(data.settings), 'utf8', function(err){
+		if(err){
+			adapter.log.error("Die Adapter Einstellungen konnte nicht gespeichert werden!");
+			adapter.log.error(err);
+			callback(400);
+		}else{
+			adapter.log.info("Die Adaptereinstellungen wurden aktualisiert!");
+			callback(200);
+		}
+	});
+};
+
 function downloadAdapterList(callback){
 	http.get('https://raw.githubusercontent.com/dede53/qs-SwitchServer/master/adapterList.json', function(error, response, body){
 		if(error){
-			console.log("Die Adapter Liste konnte nicht herrunter geladen werden!");
-			console.log(error);
+			adapter.log.error("Die Adapter Liste konnte nicht herrunter geladen werden!");
+			adapter.log.error(error);
 		}else{
 			callback(JSON.parse(body));
+			if(!fs.existsSync(__dirname + "/temp")){
+				fs.mkdirSync(__dirname + "/temp", 0766, function(err){
+					if(err){
+						console.log("mkdir " + __dirname + "/temp: failed: " + err);
+					}else{
+						adapter.log.info(__dirname + "/temp wurde erstellt");
+					}
+				});
+			}
 			fs.writeFile(__dirname + "/temp/adapterList.json", body, 'utf8', function(err){
 				if(err){
-					console.log("Die Adapter Liste konnte nicht gespeichert werden!");
-					console.log(err);
+					adapter.log.error("Die Adapter Liste konnte nicht gespeichert werden!");
+					adapter.log.error(err);
+				}else{
+					adapter.log.info("Die adapterliste wurde aktualisiert!");
 				}
 			});
 		}
@@ -212,4 +307,122 @@ function getAdapterList(callback) {
 			callback(data);
 		});
 	}
+}
+
+function adapterStatus(){
+	return {
+		status: undefined,
+		pid: undefined,
+		statusMessage: undefined,
+		installedVersion: undefined
+	}
+}
+
+function remove(name, callback){
+	stop(name, function(){
+		child_process.exec("rm -r " + __dirname + "/adapter/" + name + " && rm " + __dirname + "/settings/" + name + ".json", function(error, stdout, stderr){
+			adapter.log.info(name + " wurde entfernt");
+			status.adapter[name].status = new adapterStatus();
+			status.adapter[name].settings = {};
+			callback("entfernt");
+		});
+	});
+}
+
+function install(name, callback){
+		var url = "git clone https://github.com/dede53/qs-" + name + ".git " + __dirname + "/adapter/" + name;
+		adapter.log.error(url);
+		child_process.exec(url, function(error, stdout, stderr){
+			if(error){
+				adapter.log.error("Adapter konnte nicht installiert werden.");
+				adapter.log.error(stderr);
+				callback(stderr);
+				return;
+			}
+			adapter.log.info(stdout);
+			try{
+				var package = fs.readFileSync(__dirname + '/adapter/' + name + '/package.json');
+				package = JSON.parse(package);
+			}catch(e){
+				adapter.log.error("Fehler in der package.json von " + name);
+				callback(404);
+			}
+
+			var dependencies = Object.keys(package.dependencies);
+			if(dependencies.length > 0 ){
+				adapter.log.debug(name + ": Abhängigkeiten installieren!");
+				installDependencies(dependencies, function(response){
+					if(response != 200){
+						adapter.log.error("Abhängigkeiten konnten nicht installiert werden!");
+						adapter.log.error(response);
+						return;
+					}
+					if(fs.existsSync(__dirname + "/adapter/" + name + "/" + name + ".json.example")){
+						adapter.log.info(name + ": config verschieben!");
+						fs.createReadStream(__dirname + "/adapter/" + name + "/" + name + ".json.example")
+							.pipe(fs.createWriteStream(__dirname + "/settings/" + name + ".json"))
+							.on('error', function(err){
+								adapter.log.error(err);
+							});			
+							adapter.log.info(stdout);
+							adapter.log.debug(name + " installiert!");
+						start(name, function(status){
+							callback(status);
+						});
+					}else{
+						adapter.log.debug(name + " installiert!");
+						start(name, function(status){
+							callback(status);
+						});
+					}
+				});
+			}else{
+				if(fs.existsSync(__dirname + "/adapter/" + name + "/" + name + ".json.example")){
+					adapter.log.debug(name + ": config verschieben!");
+					adapter.log.debug(__dirname + "/adapter/" + name + "/" + name + ".json.example");
+					adapter.log.debug(__dirname + "/settings/" + name + ".json");
+					fs.createReadStream(__dirname + "/adapter/" + name + "/" + name + ".json.example")
+						.pipe(fs.createWriteStream(__dirname + "/settings/" + name + ".json"))
+						.on('error', function(err){
+							adapter.log.error(err);
+						});	
+						adapter.log.info(stdout);
+						adapter.log.debug(name + " installiert!");
+						start(name, function(status){
+							callback(status);
+						});
+				}else{
+					adapter.log.debug(name + " installiert!");
+					start(name, function(status){
+						callback(status);
+					});
+				}
+			}
+
+		});
+}
+
+function installDependencies(dependencies, cb){
+	adapter.log.info(dependencies.length + " Abhängigkeiten müssen installiert werden:");
+	async.each(dependencies,
+		function(deb, callback){
+			child_process.exec("npm install " + deb, function(error, stdout, stderr){
+				if(error){
+					adapter.log.info("npm install " + deb + ": nicht erfolgreich!");
+					adapter.log.error(error);
+				}else{
+					adapter.log.info("npm install " + deb + ": erfolgreich!");
+					callback();
+				}
+			});
+		},
+		function(err){
+			if(err){
+				adapter.log.error(err);
+				cb(400);
+			}else{
+				cb(200);
+			}
+		}
+	);
 }
