@@ -2,20 +2,32 @@ var fs					= require('fs');
 var request				= require('request');
 
 
-module.exports = function(settings){
-	this.name = settings;
-	this.loadSettings = function(){
-			if(fs.existsSync(__dirname + "/settings/" + this.name + ".json")){
-				console.log("	Einstellungen für " + this.name + " laden..");
-				var data 				= fs.readFileSync(__dirname + "/settings/" + this.name + ".json", "utf8");
-				this.settings			= JSON.parse(data);
-			}
+module.exports = function(param){
+
+	this.loadSettings = function(name){
+		if(fs.existsSync(__dirname + "/settings/" + name + ".json")){
+			process.send({"log": "Einstellungen für " + name + " laden.."});
+			var data 				= JSON.parse(fs.readFileSync(__dirname + "/settings/" + name + ".json", "utf8"));
+			process.send({"settings": data});
+			// Zeitkritisch!!!
+			return data;
+		}
 	}
-	this.loadSettings();
+
+
+	if(typeof param == 'object'){
+		this.name = param.name.toLowerCase();
+		this.settings = param;
+		process.send({"settings": param});
+	}else{
+		this.name = param.toLowerCase();
+		this.settings = this.loadSettings(param.toLowerCase());
+	}
+
 	this.setVariable = function(variable, value){
 		process.send({setVariable:{id: variable, status:value}});
 	}
-	that = this;
+	var that = this;
 	this.log = {
 		"info": function(data){
 			if(that.settings.loglevel == 1 ){
@@ -25,7 +37,7 @@ module.exports = function(settings){
 					}else{
 						var data = data.toString();
 					}
-					process.send({log: new Date() +":"+ data + '\n'});
+					process.send({"log": data});
 				}catch(e){
 					console.log(e);
 				}
@@ -39,7 +51,7 @@ module.exports = function(settings){
 					}else{
 						var data = data.toString();
 					}
-					process.send({log:new Date() +":"+ data + '\n'});
+					process.send({"log": data});
 				}catch(e){}
 			}
 		},
@@ -51,7 +63,7 @@ module.exports = function(settings){
 					}else{
 						var data = data.toString();
 					}
-					process.send({log:new Date() +":"+ data + '\n'});
+					process.send({"log": data});
 				}catch(e){}
 			}
 		},
@@ -63,7 +75,7 @@ module.exports = function(settings){
 					}else{
 						var data = data.toString();
 					}
-					process.send({log:new Date() +":"+ data + '\n'});
+					process.send({"log": data});
 				}catch(e){}
 			}
 		},
