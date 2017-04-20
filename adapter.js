@@ -1,4 +1,4 @@
-var express					=	require('express.io');
+var express					=	require('express.oi');
 var app						=	express().http().io();
 var child_process			=	require('child_process');
 var bodyParser				=	require('body-parser');
@@ -11,8 +11,26 @@ var plugins					=	{};
 var fs 						=	require('fs');
 var adapterFunctions		=	require('../app/functions/adapter.js');
 
-app.use( bodyParser.json() );
+app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));	// for parsing application/x-www-form-urlencoded
+
+
+createDir(__dirname + "/settings");
+createDir(__dirname + "/log");
+createDir(__dirname + "/temp");
+createDir(__dirname + "/adapter");
+
+function createDir(name){
+	if(!fs.existsSync(name)){
+		fs.mkdirSync(name, 0766, function(err){
+			if(err){
+				console.log("mkdir " + name + ": failed: " + err);
+			}else{
+				adapter.log.info(name + " wurde erstellt");
+			}
+		});
+	}
+}
 
 app.post('/switch', function(req, res){
 	action(req.body)
@@ -23,13 +41,6 @@ app.get('/adapterList', function(req, res){
 	getAdapterList(function(data){
 		res.json(data);
 	});
-});
-
-app.get('/status', function(req, res){
-	// getAdapterList(function(data){
-		res.send(200);
-		console.log(status);
-	// });
 });
 
 app.io.route('get', {
@@ -98,14 +109,6 @@ try{
 	console.log("Der SwitchServer läuft auf Port:" + (adapter.settings.port || 4040));
 }catch(err){
 	console.log(err);
-}
-
-if(!fs.existsSync(__dirname + "/log")){
-	fs.mkdirSync(__dirname + "/log", 0766, function(err){
-		if(err){
-			console.log("mkdir " + __dirname + "/log: failed: " + err);
-		}
-	});
 }
 
 status.adapter 					=	{};
@@ -272,15 +275,7 @@ function downloadAdapterList(callback){
 			adapter.log.error(error);
 		}else{
 			callback(JSON.parse(body));
-			if(!fs.existsSync(__dirname + "/temp")){
-				fs.mkdirSync(__dirname + "/temp", 0766, function(err){
-					if(err){
-						console.log("mkdir " + __dirname + "/temp: failed: " + err);
-					}else{
-						adapter.log.info(__dirname + "/temp wurde erstellt");
-					}
-				});
-			}
+			createDir(__dirname + "/temp");
 			fs.writeFile(__dirname + "/temp/adapterList.json", body, 'utf8', function(err){
 				if(err){
 					adapter.log.error("Die Adapter Liste konnte nicht gespeichert werden!");
