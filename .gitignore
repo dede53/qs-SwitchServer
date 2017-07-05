@@ -1,0 +1,6 @@
+$ cat .gitignore
+adapter/
+log/
+settings/
+temp/
+switchserver.pid
