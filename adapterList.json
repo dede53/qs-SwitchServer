@@ -35,7 +35,11 @@
 		},
 		"connair":{
 			"version":"0.0.1",
-			"description":"remote controle a connair"
+			"description":"remote control a connair"
+		},
+		"homegear":{
+			"version":"0.0.1",
+			"description":"remote control a ccu via homegear"
 		}
 	}
 }
