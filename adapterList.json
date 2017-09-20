@@ -36,6 +36,26 @@
 		"connair":{
 			"version":"0.0.1",
 			"description":"remote controle a connair"
+		},
+		"homegear":{
+			"version":"0.0.1",
+			"description":"remote controle a ccu"
+		},
+		"funksensoren":{
+			"version":"0.0.1",
+			"description":"remote controle a ccu"
+		},
+		"sayit":{
+			"version":"0.0.1",
+			"description":"Play files in Browser"
+		},
+		"webview":{
+			"version":"0.0.1",
+			"description":"Visualisierung"
+		},
+		"telegram":{
+			"version":"0.0.1",
+			"description":"Telegram"
 		}
 	}
 }

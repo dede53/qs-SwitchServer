@@ -6,9 +6,9 @@ module.exports = function(param){
 
 	this.loadSettings = function(name){
 		if(fs.existsSync(__dirname + "/settings/" + name + ".json")){
-			process.send({"log": "Einstellungen für " + name + " laden.."});
 			var data 				= JSON.parse(fs.readFileSync(__dirname + "/settings/" + name + ".json", "utf8"));
 			process.send({"settings": data});
+			process.send({"log": "Einstellungen für " + name + " wurden geladen.."});
 			// Zeitkritisch!!!
 			return data;
 		}
@@ -23,9 +23,13 @@ module.exports = function(param){
 		this.name = param.toLowerCase();
 		this.settings = this.loadSettings(param.toLowerCase());
 	}
+	process.send({"status": "gestartet"});
 
 	this.setVariable = function(variable, value){
-		process.send({setVariable:{id: variable, status:value}});
+		process.send({"setVariable":{id: variable, status:value}});
+	}
+	this.setDeviceStatus = function(id, status){
+		process.send({"setDeviceStatus":{id: id, status:status}});
 	}
 	var that = this;
 	this.log = {
