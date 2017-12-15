@@ -8,7 +8,7 @@ module.exports = function(param){
 		if(fs.existsSync(__dirname + "/settings/" + name + ".json")){
 			var data 				= JSON.parse(fs.readFileSync(__dirname + "/settings/" + name + ".json", "utf8"));
 			process.send({"settings": data});
-			process.send({"log": "Einstellungen für " + name + " wurden geladen.."});
+			process.send({"debug": "Einstellungen für " + name + " wurden geladen.."});
 			// Zeitkritisch!!!
 			return data;
 		}
@@ -41,7 +41,7 @@ module.exports = function(param){
 					}else{
 						var data = data.toString();
 					}
-					process.send({"log": data});
+					process.send({"info": data});
 				}catch(e){
 					console.log(e);
 				}
@@ -55,7 +55,7 @@ module.exports = function(param){
 					}else{
 						var data = data.toString();
 					}
-					process.send({"log": data});
+					process.send({"debug": data});
 				}catch(e){}
 			}
 		},
@@ -67,7 +67,7 @@ module.exports = function(param){
 					}else{
 						var data = data.toString();
 					}
-					process.send({"log": data});
+					process.send({"warning": data});
 				}catch(e){}
 			}
 		},
@@ -79,12 +79,16 @@ module.exports = function(param){
 					}else{
 						var data = data.toString();
 					}
-					process.send({"log": data});
+					process.send({"error": data});
 				}catch(e){}
 			}
 		},
 		"pure": function(data){
 			console.log(data);
 		}
-	}
+    }
+    
+    process.on('uncaughtException', (err) => {
+        this.log.error("uncaughtException:" + err);
+    });
 }
