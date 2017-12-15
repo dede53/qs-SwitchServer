@@ -1,52 +1,41 @@
 var express					=	require('express.oi');
 var child_process			=	require('child_process');
 var bodyParser				=	require('body-parser');
-var request				=	require('request');
+var request				    =	require('request');
 var async 					= 	require('async');
 var fs						=	require('fs');
 var adapterLib 				=	require('./adapter-lib.js');
 var status					=	{};
-status.adapter 					=	{};
+status.adapter 				=	{};
 var errors					=	[];
-logFile						=	fs.createWriteStream( "./log/debug-adapter.log", {flags : 'w'});
-var adapter = {
-	"settings":{
-		"port":4040,
-		"ip":"192.168.2.47",
-		"name": "Raspi",
-		"loglevel": 1,
-		"maxLogMessages":200,
-		"QuickSwitch":{
-			"ip":"192.168.2.47",
-			"port":"1230"
-		}
-	},
-	"log": {
-		"info": function(data){
-			if(adapter.settings.loglevel == 1 ){
-				setError(data);
-			}
-		},
-		"debug": function(data){
-			if(adapter.settings.loglevel <= 2){
-				setError(data);
-			}
-		},
-		"warning": function(data){
-			if(adapter.settings.loglevel <= 3){
-				setError(data);
-			}
-		},
-		"error": function(data){
-			if(adapter.settings.loglevel <= 4){
-				setError(data);
-			}
-		},
-		// Deprected!
-		"pure": function(data){
-			setError(data);
-		}
-	}
+var adapter                 =   {};
+adapter.settings            =   require('./settings/adapter.json');
+adapter.logFile				=	fs.createWriteStream( "./log/debug-adapter.log", {flags : 'w'});
+adapter.log = {
+    "info": function(data){
+        if(adapter.settings.loglevel == 1 ){
+            setError(data);
+        }
+    },
+    "debug": function(data){
+        if(adapter.settings.loglevel <= 2){
+            setError(data);
+        }
+    },
+    "warning": function(data){
+        if(adapter.settings.loglevel <= 3){
+            setError(data);
+        }
+    },
+    "error": function(data){
+        if(adapter.settings.loglevel <= 4){
+            setError(data);
+        }
+    },
+    // Deprected!
+    "pure": function(data){
+        setError(data);
+    }
 };
 var app						=	express().http().io();
 /*
@@ -58,14 +47,16 @@ var options = {
 var app						=	express().https(options).io();
 */
 function setError(data){
-	if(typeof data === "object"){
+    if(data == undefined){
+        return;
+    }
+    if(typeof data === "object"){
 		var data = JSON.stringify(data);
 	}else{
-		var data = data.toString();
+        var data = data.toString();
 	}
-	var now = new Date;
-	var datum =  now.getDate() + "." + (now.getMonth() + 1) + "." + now.getFullYear() + " " + now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds() + ":" + now.getMilliseconds();
-	logFile.write(datum +":"+ data + "\n");
+	var datum =  new Date().toLocaleString();
+	adapter.logFile.write(datum +":"+ data + "\n");
 	console.log(datum +":"+ data);
 	errors.push({"time":datum, "message":data});
 	if(errors.length > adapter.settings.maxLogMessages){
@@ -108,8 +99,9 @@ function createDir(name){
 }
 
 app.post('/switch', function(req, res){
-	action(req.body);
-	res.json(200);
+	action(req.body, function(status){
+        res.json(status);
+    });
 });
 
 app.get('/adapterList', function(req, res){
@@ -195,10 +187,7 @@ app.io.route('SwitchServer', {
 		downloadAdapterList(function(response){
 			for(var index in response.adapter) {
 				if(!status.adapter[index]){
-					status.adapter[index]							=	{};
-					status.adapter[index].info						=	response.adapter[index];
-					status.adapter[index].info.name					=	index;
-					status.adapter[index].status					=	new adapterStatus();
+					status.adapter[index]							=	new adapterStatus(response.adapter[index], index);
 				}
 			}
 			req.socket.emit('success');
@@ -247,10 +236,7 @@ function startAll(callback){
 	getAdapterList(function(data){
 		fs.readdir("./adapter",function(err, files){
 			for(var index in data.adapter) {
-				status.adapter[index]							=	{};
-				status.adapter[index].info						=	data.adapter[index];
-				status.adapter[index].info.name					=	index;
-				status.adapter[index].status					=	new adapterStatus();
+				status.adapter[index]							=	new adapterStatus(data.adapter[index], index);
 			}
 			async.each(files, function(name, cb){
 				start(name, function(response){
@@ -276,9 +262,11 @@ function stopAll(callback){
 function restart(name, callback){
 	stop(name, function(status){
 		if(status == "gestoppt"){
-			start(name, function(status){
-				callback(status);
-			});
+            setTimeout(function(){
+                start(name, function(status){
+                    callback(status);
+                });
+            }, 1000);
 		}else{
 			callback(status);
 		}
@@ -298,13 +286,34 @@ function start(name, callback){
 			plugins[name].log_file		= fs.createWriteStream( debugFile, {flags : 'w', encoding: 'utf8'});
 			plugins[name].fork			= child_process.fork(path);
 
-			status.adapter[name].status.pid = plugins[name].fork.pid; 
+			status.adapter[name].status.pid = plugins[name].fork.pid;
 			status.adapter[name].status.statusMessage = "";
-			plugins[name].fork.on('message', function(response) {				
-				if(response.log){
-					adapter.log.info(response.log);
-					plugins[name].log_file.write(new Date() +":"+ response.log.toString() + '\n');
-				}
+			plugins[name].fork.on('message', function(response){
+                if(response.log){
+                    status.adapter[name].setError(response.log);
+                    adapter.log.info(response.log);
+                    plugins[name].log_file.write(new Date() +":"+ response.log.toString() + '\n');
+                }
+                if(response.info){
+                    status.adapter[name].setError(response.info);
+					adapter.log.info(response.info);
+					plugins[name].log_file.write(new Date() +":"+ response.info.toString() + '\n');
+                }
+                if(response.debug){
+                    status.adapter[name].setError(response.debug);
+					adapter.log.debug(response.debug);
+					plugins[name].log_file.write(new Date() +":"+ response.debug.toString() + '\n');
+                }
+                if(response.warning){
+                    status.adapter[name].setError(response.warning);
+					adapter.log.warning(response.warning);
+					plugins[name].log_file.write(new Date() +":"+ response.warning.toString() + '\n');
+                }
+                if(response.error){
+                    status.adapter[name].setError(response.error);
+                    adapter.log.error(response.error);
+					plugins[name].log_file.write(new Date() +":"+ response.error.toString() + '\n');
+                }
 				if(response.setVariable){
 					request.post({
 						url:'http://' + adapter.settings.QuickSwitch.ip + ':' + adapter.settings.QuickSwitch.port + '/setVariable',
@@ -371,16 +380,19 @@ function start(name, callback){
 				console.log(data);
 				status.adapter[name].status.pid = undefined;
 				status.adapter[name].status.status = "Fehler!";
-				status.adapter[name].status.statusMessage = "Der Adapter ist abgestürzt!";
-				plugins[name].log_file.write(new Date() +": Der Adapter ist abgestürzt! error\n");
+                status.adapter[name].status.statusMessage = "Der Adapter ist abgestürzt!";
+                status.adapter[name].setError("Der Adapter ist abgestürzt!");
+				plugins[name].log_file.write(new Date() +": Der Adapter ist abgestürzt!\n");
 				adapter.log.error(JSON.stringify(data));
 				plugins[name].log_file.write(new Date() +":"+ JSON.stringify(data) + '\n');
 				app.io.emit('status', status);
 			});
 			plugins[name].fork.on('disconnect', function(){
 				console.log("disconnect");
-				// status.adapter[name].status.pid = undefined;
+                // status.adapter[name].status.pid = undefined;
+                plugins[name].running = false;
 				status.adapter[name].status.status = "Fehler!";
+                status.adapter[name].setError("Der Adapter läuft nicht (disconnect)");
 				status.adapter[name].status.statusMessage = "Der Adapter läuft nicht (disconnect)";
 				plugins[name].log_file.write(new Date() +": Der Adapter läuft nicht!\n");
 				app.io.emit('status', status);
@@ -388,7 +400,7 @@ function start(name, callback){
 				// plugins[name].log_file.write(new Date() + JSON.stringify(data));
 			});
 			plugins[name].fork.on('close', function() {
-				console.log("close");
+                plugins[name].running = false;
 				// status.adapter[name].status.pid = undefined;
 				// status.adapter[name].status.statusMessage = "Der Adapter ist abgestürzt! close";
 				// plugins[name].log_file.write(new Date() +": Der Adapter ist abgestürzt!\n");
@@ -396,7 +408,7 @@ function start(name, callback){
 			// plugins[name].fork.stderr.on('data', function(data){
   	// 			console.log('stderr:' + data);
 			// });
-
+            status.adapter[name].setError("Der Adapter wurde gestartet!");
 			plugins[name].log_file.write(new Date() +": Der Adapter wurde gestartet!\n");
 			adapter.log.info("Adapter "+ name +" wurde gestartet");
 			plugins[name].running = true;
@@ -425,25 +437,29 @@ function stop(name, callback){
 	}
 }
 
-function action(data){
+function action(data, callback){
 	if(data.data.protocol == undefined || data.data.protocol == "undefined"){
-		adapter.log.error("Kein Protocol für das Gerät " + data.data.name + "|" + data.data.Raum + " ausgewählt!");
+        adapter.log.error("Kein Protocol für das Gerät " + data.data.name + "|" + data.data.Raum + " ausgewählt!");
+        callback(400);
 		return;
 	}
 	if(data.data.protocol.includes(":")){
-		var bla = data.data.protocol.split(":");
+        var bla = data.data.protocol.split(":");
 		data.data.protocol = bla[1];
 		var protocol = bla[0];
 	}else{
-		var protocol = data.data.protocol;
+        var protocol = data.data.protocol;
 	}
 	if(!plugins[protocol]){
-		adapter.log.error("Adapter zum schalten nicht installiert: " + data.data.protocol);
+        adapter.log.error("Adapter zum schalten nicht installiert: " + protocol + ":" + data.data.protocol);
+        callback(401);
 		return;
 	}
 	try{
 		plugins[protocol].fork.send(data);
-	}catch(err){
+        callback(200);        
+    }catch(err){
+        callback(404);
 		adapter.log.error(data);
 		adapter.log.error(err);
 	}
@@ -497,14 +513,40 @@ function getAdapterList(callback) {
 		});
 	}
 }
-
-function adapterStatus(){
-	return {
-		status: undefined,
-		pid: undefined,
-		statusMessage: undefined,
-		installedVersion: undefined
-	}
+/**
+ * 
+ * 				status.adapter[index]							=	{};
+				status.adapter[index].info						=	data.adapter[index];
+				status.adapter[index].info.name					=	index;
+				status.adapter[index].status					=	new adapterStatus();
+				status.adapter[index].errors					=	[];
+				status.adapter[index].setError					=	function(err){
+                    var datum =  new Date().toLocaleString();
+                    status.adapter[index].errors.push({"time":datum, "message":err});
+                    if(status.adapter[index].errors.length > adapter.settings.maxLogMessages){
+                        status.adapter[index].errors.splice(0,1);
+                    }
+                };
+ */
+function adapterStatus(info, name){
+    info.name = name;
+    return {
+        "info": info,
+        "status": {
+            status: undefined,
+            pid: undefined,
+            statusMessage: undefined,
+            installedVersion: undefined
+        },
+        "errors":[],
+        "setError": function(err){
+            var datum =  new Date().toLocaleString();
+            this.errors.push({"time":datum, "message":err});
+            if(this.errors.length > adapter.settings.maxLogMessages){
+                this.errors.splice(0,1);
+            }
+        }
+    }
 }
 
 function remove(name, callback){
