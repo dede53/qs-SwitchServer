@@ -38,7 +38,7 @@
 			"description":"remote controle a connair"
 		},
 		"homegear":{
-			"version":"0.0.1",
+			"version":"0.0.2",
 			"description":"remote controle a ccu"
 		},
 		"funksensoren":{
