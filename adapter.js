@@ -553,8 +553,7 @@ function remove(name, callback){
 	stop(name, function(){
 		child_process.exec("rm -r " + __dirname + "/adapter/" + name + " && rm " + __dirname + "/settings/" + name + ".json", function(error, stdout, stderr){
 			adapter.log.info(name + " wurde entfernt");
-			status.adapter[name].status = new adapterStatus();
-			status.adapter[name].settings = {};
+			status.adapter[name] = undefined;
 			callback("entfernt");
 		});
 	});
