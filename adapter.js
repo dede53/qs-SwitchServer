@@ -595,8 +595,8 @@ function install(name, callback){
 							.on('error', function(err){
 								adapter.log.error(err);
 							});			
-							adapter.log.info(stdout);
-							adapter.log.debug(name + " installiert!");
+						adapter.log.info(stdout);
+						adapter.log.debug(name + " installiert!");
 						start(name, function(status){
 							callback(status);
 						});
