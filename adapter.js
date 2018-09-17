@@ -396,6 +396,21 @@ function start(name, callback){
 					status.adapter[name].settings 					=	response.settings;
 					status.adapter[name].status.installedVersion	=	response.settings.version;
 				}
+				if(response.setSettings){
+					saveSettings(response.setSettings, function(anw){
+						if(anw == 200 ){
+							if(response.forceRestart == true){
+								restart(name, function(adapterStatus){
+									status.adapter[name].status.status = adapterStatus;
+									app.io.emit('status', status);
+								});
+							}else{
+								status.adapter[name].settings = response.setSettings.settings;
+								app.io.emit('status', status);
+							}
+						}
+					});
+				}
 			});
 			plugins[name].fork.on('error', function(data) {
 				console.log(typeof data);

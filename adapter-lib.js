@@ -31,6 +31,16 @@ module.exports = function(param){
 	this.setDeviceStatus = function(id, status){
 		process.send({"setDeviceStatus":{id: id, status:status}});
 	}
+	this.setSettings = (settings, forceRestart) => {
+		settings.name = this.name;
+		process.send({
+			forceRestart: forceRestart || false,
+			setSettings: {
+				name: this.name,
+				settings: settings
+			}
+		});
+	}
 	var that = this;
 	this.log = {
 		"info": function(data){
