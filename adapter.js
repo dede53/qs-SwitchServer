@@ -358,6 +358,27 @@ function start(name, callback){
 					});
 					//process.send(response);
 				}
+				if(response.chatMessage){
+					request.post({
+						url:'http://' + adapter.settings.QuickSwitch.ip + ':' + adapter.settings.QuickSwitch.port + '/addChatMessage',
+						form: response.chatMessage
+					},function( err, httpResponse, body){
+						if(err){
+							adapter.log.error("Error! \n QuickSwitch ist nicht erreichbar!");
+							adapter.log.error(err);
+						}else{
+							if(body !== '200'){
+								adapter.log.error("QuickSwitch [" + adapter.settings.QuickSwitch.ip + ':' + adapter.settings.QuickSwitch.port + "] meldet einen Fehler");
+								if(callback){
+									callback(body);
+								}
+								return;
+							}else{
+								// adapter.log.info("Erfolgreich an QuickSwitch gesendet");
+							}
+						}
+					});
+				}
 				if(response.status){
 					status.adapter[name].status.status = response.status;
 					app.io.emit('status', status);
@@ -438,24 +459,25 @@ function stop(name, callback){
 }
 
 function action(data, callback){
-	if(data.data.protocol == undefined || data.data.protocol == "undefined"){
-        adapter.log.error("Kein Protocol für das Gerät " + data.data.name + "|" + data.data.Raum + " ausgewählt!");
+	if(data.protocol == undefined || data.protocol == "undefined"){
+        adapter.log.error("Kein Protocol für das Gerät " + data.name + "|" + data.Raum + " ausgewählt!");
         callback(400);
 		return;
 	}
-	if(data.data.protocol.includes(":")){
-        var bla = data.data.protocol.split(":");
-		data.data.protocol = bla[1];
+	if(data.protocol.includes(":")){
+        var bla = data.protocol.split(":");
+		data.protocol = bla[1];
 		var protocol = bla[0];
 	}else{
-        var protocol = data.data.protocol;
+        var protocol = data.protocol;
 	}
 	if(!plugins[protocol]){
-        adapter.log.error("Adapter zum schalten nicht installiert: " + protocol + ":" + data.data.protocol);
+        adapter.log.error("Adapter zum schalten nicht installiert: " + protocol + ":" + data.protocol);
         callback(401);
 		return;
 	}
 	try{
+		adapter.log.error("Sende an:" + protocol);
 		plugins[protocol].fork.send(data);
         callback(200);        
     }catch(err){
