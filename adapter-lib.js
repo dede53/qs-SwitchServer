@@ -8,7 +8,7 @@ module.exports = function(param){
 		if(fs.existsSync(__dirname + "/settings/" + name + ".json")){
 			var data 				= JSON.parse(fs.readFileSync(__dirname + "/settings/" + name + ".json", "utf8"));
 			process.send({"settings": data});
-			process.send({"debug": "Einstellungen für " + name + " wurden geladen.."});
+			process.send({"debug": "Einstellungen für " + name + " wurden geladen..", "source": name});
 			// Zeitkritisch!!!
 			return data;
 		}
@@ -41,7 +41,7 @@ module.exports = function(param){
 					}else{
 						var data = data.toString();
 					}
-					process.send({"info": data});
+					process.send({"info": data, "source": that.name});
 				}catch(e){
 					console.log(e);
 				}
@@ -55,7 +55,7 @@ module.exports = function(param){
 					}else{
 						var data = data.toString();
 					}
-					process.send({"debug": data});
+					process.send({"debug": data, "source": that.name});
 				}catch(e){}
 			}
 		},
@@ -67,7 +67,7 @@ module.exports = function(param){
 					}else{
 						var data = data.toString();
 					}
-					process.send({"warning": data});
+					process.send({"warning": data, "source": that.name});
 				}catch(e){}
 			}
 		},
@@ -79,7 +79,7 @@ module.exports = function(param){
 					}else{
 						var data = data.toString();
 					}
-					process.send({"error": data});
+					process.send({"error": data, "source": that.name});
 				}catch(e){}
 			}
 		},

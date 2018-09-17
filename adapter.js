@@ -12,29 +12,29 @@ var adapter                 =   {};
 adapter.settings            =   require('./settings/adapter.json');
 adapter.logFile				=	fs.createWriteStream( "./log/debug-adapter.log", {flags : 'w'});
 adapter.log = {
-    "info": function(data){
+    "info": function(data, source){
         if(adapter.settings.loglevel == 1 ){
-            setError(data);
+            setError(data, source);
         }
     },
-    "debug": function(data){
+    "debug": function(data, source){
         if(adapter.settings.loglevel <= 2){
-            setError(data);
+            setError(data, source);
         }
     },
-    "warning": function(data){
+    "warning": function(data, source){
         if(adapter.settings.loglevel <= 3){
-            setError(data);
+            setError(data, source);
         }
     },
-    "error": function(data){
+    "error": function(data, source){
         if(adapter.settings.loglevel <= 4){
-            setError(data);
+            setError(data, source);
         }
     },
     // Deprected!
-    "pure": function(data){
-        setError(data);
+    "pure": function(data, source){
+        setError(data, source);
     }
 };
 var app						=	express().http().io();
@@ -46,7 +46,7 @@ var options = {
 }
 var app						=	express().https(options).io();
 */
-function setError(data){
+function setError(data, source){
     if(data == undefined){
         return;
     }
@@ -58,11 +58,12 @@ function setError(data){
 	var datum =  new Date().toLocaleString();
 	adapter.logFile.write(datum +":"+ data + "\n");
 	console.log(datum +":"+ data);
-	errors.push({"time":datum, "message":data});
+	errors.push({"time":datum, "message":data, "source": source});
 	if(errors.length > adapter.settings.maxLogMessages){
 		errors.splice(0,1);
 	}
 	app.io.emit("log", errors);
+	app.io.emit("newLogMessage", {"time":datum, "message":data, "source": source});
 }
 var plugins					=	{};
 var fs 						=	require('fs');
@@ -291,27 +292,27 @@ function start(name, callback){
 			plugins[name].fork.on('message', function(response){
                 if(response.log){
                     status.adapter[name].setError(response.log);
-                    adapter.log.info(response.log);
+                    adapter.log.info(response.log, name);
                     plugins[name].log_file.write(new Date() +":"+ response.log.toString() + '\n');
                 }
                 if(response.info){
                     status.adapter[name].setError(response.info);
-					adapter.log.info(response.info);
+					adapter.log.info(response.info, name);
 					plugins[name].log_file.write(new Date() +":"+ response.info.toString() + '\n');
                 }
                 if(response.debug){
                     status.adapter[name].setError(response.debug);
-					adapter.log.debug(response.debug);
+					adapter.log.debug(response.debug, name);
 					plugins[name].log_file.write(new Date() +":"+ response.debug.toString() + '\n');
                 }
                 if(response.warning){
                     status.adapter[name].setError(response.warning);
-					adapter.log.warning(response.warning);
+					adapter.log.warning(response.warning, name);
 					plugins[name].log_file.write(new Date() +":"+ response.warning.toString() + '\n');
                 }
                 if(response.error){
                     status.adapter[name].setError(response.error);
-                    adapter.log.error(response.error);
+                    adapter.log.error(response.error, name);
 					plugins[name].log_file.write(new Date() +":"+ response.error.toString() + '\n');
                 }
 				if(response.setVariable){
@@ -563,7 +564,7 @@ function adapterStatus(info, name){
         "errors":[],
         "setError": function(err){
             var datum =  new Date().toLocaleString();
-            this.errors.push({"time":datum, "message":err});
+            this.errors.push({"time":datum, "message":err, "source": name});
             if(this.errors.length > adapter.settings.maxLogMessages){
                 this.errors.splice(0,1);
             }
@@ -616,8 +617,8 @@ function install(name, callback){
 							.on('error', function(err){
 								adapter.log.error(err);
 							});			
-							adapter.log.info(stdout);
-							adapter.log.debug(name + " installiert!");
+						adapter.log.info(stdout);
+						adapter.log.debug(name + " installiert!");
 						start(name, function(status){
 							callback(status);
 						});
