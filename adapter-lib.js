@@ -1,8 +1,10 @@
 var fs					= require('fs');
 var request				= require('request');
+var util				= require('util');
+var events				= require("events");
 
-
-module.exports = function(param){
+util.inherits(main, events.EventEmitter);
+function main(param){
 
 	this.loadSettings = function(name){
 		if(fs.existsSync(__dirname + "/settings/" + name + ".json")){
@@ -97,8 +99,17 @@ module.exports = function(param){
 			console.log(data);
 		}
     }
-    
+
     process.on('uncaughtException', (err) => {
         this.log.error("uncaughtException:" + err);
     });
+
+    process.on('message', (data) => {
+		if(data.adapter == this.name){
+			this.emit(this.name, data);
+		}
+		this.emit("all", data);
+    });
 }
+
+module.exports = main;
