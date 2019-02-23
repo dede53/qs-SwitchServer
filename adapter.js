@@ -89,7 +89,7 @@ process.on('SIGINT', function(code){
 
 function createDir(name){
 	if(!fs.existsSync(name)){
-		fs.mkdirSync(name, 0766, function(err){
+		fs.mkdirSync(name, "0766", function(err){
 			if(err){
 				adapter.log.error("mkdir " + name + ": failed: " + err);
 			}else{
@@ -136,12 +136,7 @@ app.io.route('adapter', {
 		});
 	},
 	install:function(req){
-		install(req.data, function(response){
-/*			setTimeout(function(){
-				status.adapter[req.data].status.status = response;
-				app.io.emit('status', status);
-			}, 5000);*/
-		});
+		install(req.data, function(response){});
 	},
 	restart:function(req){
 		restart(req.data, function(response){
@@ -229,6 +224,44 @@ try{
 		arduinos:[],
 
 	}
+}
+
+status.adapter[index]							=	{};
+status.adapter[index].info						=	data.adapter[index];
+status.adapter[index].info.name					=	index;
+status.adapter[index].status					=	new adapterStatus();
+status.adapter[index].errors					=	[];
+status.adapter[index].setError					=	function(err){
+	var datum =  new Date().toLocaleString();
+	status.adapter[index].errors.push({"time":datum, "message":err});
+	if(status.adapter[index].errors.length > adapter.settings.maxLogMessages){
+		status.adapter[index].errors.splice(0,1);
+	}
+};
+
+return {
+    "info": { 								// aus adapterList.json
+		name:"",
+		version:"",
+		shortDescription:"",
+		description:"",
+    },
+    "status": {
+        status: undefined,
+        pid: undefined,
+        statusMessage: undefined,
+        installedVersion: undefined
+    },
+    "settings":{
+    }
+    "errors":[],
+    "setError": function(err){
+        var datum =  new Date().toLocaleString();
+        this.errors.push({"time":datum, "message":err, "source": name});
+        if(this.errors.length > adapter.settings.maxLogMessages){
+            this.errors.splice(0,1);
+        }
+    }
 }
 
 ******************************************/
