@@ -411,6 +411,16 @@ function start(name, callback){
 						}
 					});
 				}
+				if(response.action){
+					request.get('http://' + adapter.settings.QuickSwitch.ip + ':' + adapter.settings.QuickSwitch.port + '/switch/' + response.action.type + '/' + response.action.id + '/' + response.action.status, function(error, response, body){
+						if(error){
+							adapter.log.error("Die Adapter Liste konnte nicht herrunter geladen werden!");
+							adapter.log.error(error);
+						}else{
+							adapter.log.debug("Aktion ausgeführt!");
+						}
+					});
+				}
 			});
 			plugins[name].fork.on('error', function(data) {
 				console.log(typeof data);
@@ -483,19 +493,22 @@ function action(data, callback){
 	if(data.protocol.includes(":")){
         var bla = data.protocol.split(":");
 		data.protocol = bla[1];
-		var protocol = bla[0];
+		data.adapter = bla[0];
 	}else{
-        var protocol = data.protocol;
+        data.adapter = data.protocol;
 	}
-	if(!plugins[protocol]){
-        adapter.log.error("Adapter zum schalten nicht installiert: " + protocol + ":" + data.protocol);
+	if(!plugins[data.adapter]){
+        adapter.log.error("Adapter zum schalten nicht installiert: " + data.adapter + ":" + data.protocol);
         callback(401);
 		return;
 	}
 	try{
-		adapter.log.error("Sende an:" + protocol);
-		plugins[protocol].fork.send(data);
-        callback(200);        
+		adapter.log.error("Sende an:" + data.adapter);
+		for(var id in plugins){
+			adapter.log.error(plugins[id].name);
+			plugins[id].fork.send(data);
+		}
+        callback(200);
     }catch(err){
         callback(404);
 		adapter.log.error(data);
