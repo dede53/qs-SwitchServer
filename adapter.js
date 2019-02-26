@@ -67,7 +67,6 @@ function setError(data, source){
 }
 var plugins					=	{};
 var fs 						=	require('fs');
-var adapterFunctions		=	require('../app/functions/adapter.js');
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -101,7 +100,7 @@ function createDir(name){
 
 app.post('/switch', function(req, res){
 	action(req.body, function(status){
-        res.json(status);
+        res.status(status).json(status); // .json() entfernen wenn alles stimmt
     });
 });
 
@@ -125,8 +124,12 @@ app.io.route('get', {
 
 app.io.route('adapter', {
 	get:function(req){
-		adapterFunctions.get(function(data){
-			req.socket.emit('change', new message('get', data));
+		fs.readdir('../../adapter', function(err, data){
+			if(err){
+				// adapter.log.error(err);
+			}else{
+				req.socket.emit('change', new message('get', data));
+			}
 		});
 	},
 	remove:function(req){
@@ -357,11 +360,9 @@ function start(name, callback){
 							adapter.log.error("Error! \n QuickSwitch ist nicht erreichbar!");
 							adapter.log.error(err);
 						}else{
-							if(body !== '200'){
-								adapter.log.error("QuickSwitch [" + adapter.settings.QuickSwitch.ip + ':' + adapter.settings.QuickSwitch.port + "] meldet einen Fehler");
-								if(callback){
-									callback(body);
-								}
+							if(httpResponse.statusCode !== 200 && httpResponse.statusCode !== 304){
+								adapter.log.error("QuickSwitch [" + adapter.settings.QuickSwitch.ip + ':' + adapter.settings.QuickSwitch.port + "] meldet einen Fehler:");
+								adapter.log.error(body);
 								return;
 							}else{
 								// adapter.log.info("Erfolgreich an QuickSwitch gesendet");
@@ -379,11 +380,9 @@ function start(name, callback){
 							adapter.log.error("Error! \n QuickSwitch ist nicht erreichbar!");
 							adapter.log.error(err);
 						}else{
-							if(body !== '200'){
+							if(httpResponse.statusCode !== 200 && httpResponse.statusCode !== 304){
 								adapter.log.error("QuickSwitch [" + adapter.settings.QuickSwitch.ip + ':' + adapter.settings.QuickSwitch.port + "] meldet einen Fehler");
-								if(callback){
-									callback(body);
-								}
+								adapter.log.error(body);
 								return;
 							}else{
 								// adapter.log.info("Erfolgreich an QuickSwitch gesendet");
@@ -401,11 +400,9 @@ function start(name, callback){
 							adapter.log.error("Error! \n QuickSwitch ist nicht erreichbar!");
 							adapter.log.error(err);
 						}else{
-							if(body !== '200'){
+							if(httpResponse.statusCode !== 200 && httpResponse.statusCode !== 304){
 								adapter.log.error("QuickSwitch [" + adapter.settings.QuickSwitch.ip + ':' + adapter.settings.QuickSwitch.port + "] meldet einen Fehler");
-								if(callback){
-									callback(body);
-								}
+								adapter.log.error(body);
 								return;
 							}else{
 								// adapter.log.info("Erfolgreich an QuickSwitch gesendet");
