@@ -98,10 +98,26 @@ function createDir(name){
 	}
 }
 
-app.post('/switch', function(req, res){
+// Können auch alle zusammengelegt werden, wenn req.body.type mitgeliefert wird!! Dann mit if(req.body.type == "action"){...}
+// Action
+app.post('/action', function(req, res){
 	action(req.body, function(status){
         res.status(status).json(status); // .json() entfernen wenn alles stimmt
     });
+});
+// Variable
+app.post('/variable', (req, res) => {
+	req.body.type = "variable";
+	sendAllAdapters(req.body, (status) => {
+		res.status(status).end();
+	});
+});
+// alert
+app.post('/alert', (req, res) => {
+	req.body.type = "alert";
+	sendAllAdapters(req.body, (status) => {
+		res.status(status).end();
+	});
 });
 
 app.get('/adapterList', function(req, res){
@@ -124,13 +140,7 @@ app.io.route('get', {
 
 app.io.route('adapter', {
 	get:function(req){
-		fs.readdir('../../adapter', function(err, data){
-			if(err){
-				// adapter.log.error(err);
-			}else{
-				req.socket.emit('change', new message('get', data));
-			}
-		});
+		req.socket.emit('change', new message('get', Object.keys(status.adapter)));
 	},
 	remove:function(req){
 		remove(req.data, function(response){
@@ -515,6 +525,7 @@ function stop(name, callback){
 }
 
 function action(data, callback){
+	data.type = "action";
 	if(data.protocol == undefined || data.protocol == "undefined"){
         adapter.log.error("Kein Protocol für das Gerät " + data.name + "|" + data.Raum + " ausgewählt!");
         callback(400);
@@ -532,10 +543,14 @@ function action(data, callback){
         callback(401);
 		return;
 	}
+	sendAllAdapters(data, (status) => {
+		callback(status);
+	});
+}
+
+function sendAllAdapters(data, callback){
 	try{
-		adapter.log.error("Sende an:" + data.adapter);
 		for(var id in plugins){
-			adapter.log.error(plugins[id].name);
 			plugins[id].fork.send(data);
 		}
         callback(200);

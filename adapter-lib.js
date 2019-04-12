@@ -105,9 +105,24 @@ function main(param){
     });
 
     process.on('message', (data) => {
-		if(data.adapter == this.name){
-			this.emit(this.name, data);
-		}
+    	switch(data.type){
+    		case "variable":
+    			this.emit('variable', data);
+    			break;
+    		case "alert":
+    			this.emit('alert', data);
+    			break;
+    		case "action":
+    			this.emit('action', data);
+				if(data.adapter == this.name){
+					this.emit(this.name, data);
+				}
+    			break;
+    		default:
+    			this.log.error("Fehler: Falscher datentype!");
+    			this.log.error(data);
+    			break;
+    	}
 		this.emit("all", data);
     });
 }
