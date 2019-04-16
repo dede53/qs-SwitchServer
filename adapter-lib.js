@@ -101,7 +101,7 @@ function main(param){
     }
 
     process.on('uncaughtException', (err) => {
-        this.log.error("uncaughtException:" + err);
+        this.log.error(this.name + ":uncaughtException:" + err);
     });
 
     process.on('message', (data) => {
