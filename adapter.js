@@ -120,6 +120,13 @@ app.post('/alert', (req, res) => {
 	});
 });
 
+app.delete('/alert', (req, res) => {
+       req.body.type = "alert";
+       sendAllAdapters(req.body, (status) => {
+               res.status(status).end();
+       });
+});
+
 app.get('/adapterList', function(req, res){
 	getAdapterList(function(data){
 		res.json(data);
@@ -144,12 +151,26 @@ app.io.route('adapter', {
 	},
 	remove:function(req){
 		remove(req.data, function(response){
-			status.adapter[req.data].status.status = response;
 			app.io.emit('status', status);
 		});
 	},
 	install:function(req){
 		install(req.data, function(response){});
+	},
+	update: function(req){
+		console.log("Update ausführen:" + req.data);
+		stop(req.data, function(response){
+			status.adapter[req.data].status.status = response;
+			app.io.emit('status', status);
+			update(req.data, (error) => {
+				if(error == 200){
+					start(req.data, function(response){
+						status.adapter[req.data].status.status = response;
+						app.io.emit('status', status);
+					});
+				}
+			});
+		});
 	},
 	restart:function(req){
 		restart(req.data, function(response){
@@ -433,6 +454,9 @@ function start(name, callback){
 					app.io.emit('status', status);
 				}
 				if(response.settings){
+					if(response.settings.version != status.adapter[name].info.version){
+						status.adapter[name].status.updateAvailable = true;
+					}
 					status.adapter[name].settings 					=	response.settings;
 					status.adapter[name].status.installedVersion	=	response.settings.version;
 				}
@@ -461,6 +485,16 @@ function start(name, callback){
 						}
 					});
 				}
+                if(response.alert){
+                    request.delete('http://' + adapter.settings.QuickSwitch.ip + ':' + adapter.settings.QuickSwitch.port + '/alert/' + response.alert, function(error, response, body){
+                        if(error){
+                            adapter.log.error("Alert konnte nicht gelöscht werden!");
+                            adapter.log.error(error);
+                        }else{
+                            adapter.log.debug("Alert gelöscht!");
+                        }
+                    });
+                }
 			});
 			plugins[name].fork.on('error', function(data) {
 				console.log(typeof data);
@@ -475,7 +509,7 @@ function start(name, callback){
 				app.io.emit('status', status);
 			});
 			plugins[name].fork.on('disconnect', function(){
-				console.log("disconnect");
+				adapter.log.error("disconnect");
                 // status.adapter[name].status.pid = undefined;
                 plugins[name].running = false;
 				status.adapter[name].status.status = "Fehler!";
@@ -488,6 +522,7 @@ function start(name, callback){
 			});
 			plugins[name].fork.on('close', function() {
                 plugins[name].running = false;
+				adapter.log.error("close");
 				// status.adapter[name].status.pid = undefined;
 				// status.adapter[name].status.statusMessage = "Der Adapter ist abgestürzt! close";
 				// plugins[name].log_file.write(new Date() +": Der Adapter ist abgestürzt!\n");
@@ -632,7 +667,8 @@ function adapterStatus(info, name){
             status: undefined,
             pid: undefined,
             statusMessage: undefined,
-            installedVersion: undefined
+            installedVersion: undefined,
+            updateAvailable: false
         },
         "errors":[],
         "setError": function(err){
@@ -649,7 +685,14 @@ function remove(name, callback){
 	stop(name, function(){
 		child_process.exec("rm -r " + __dirname + "/adapter/" + name + " && rm " + __dirname + "/settings/" + name + ".json", function(error, stdout, stderr){
 			adapter.log.info(name + " wurde entfernt");
-			status.adapter[name] = undefined;
+			status.adapter[name].status = {
+	            status: undefined,
+	            pid: undefined,
+	            statusMessage: undefined,
+	            installedVersion: undefined,
+	            updateAvailable: false
+	        };
+
 			callback("entfernt");
 		});
 	});
@@ -751,4 +794,19 @@ function installDependencies(dependencies, cb){
 			}
 		}
 	);
+}
+
+function update(name, callback){
+	var command = "cd "+ __dirname + "/adapter/"+ name +" && git pull";
+	adapter.log.error(command);
+	child_process.exec(command, function(error, stdout, stderr){
+		if(error){
+			adapter.log.error("Adapter konnte nicht aktualisiert werden.");
+			adapter.log.error(stderr);
+			callback(stderr);
+			return;
+		}
+		adapter.log.info(stdout);
+		callback(200);
+	});
 }
