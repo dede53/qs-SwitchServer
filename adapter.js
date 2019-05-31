@@ -160,11 +160,13 @@ app.io.route('adapter', {
 	update: function(req){
 		console.log("Update ausführen:" + req.data);
 		stop(req.data, function(response){
+			status.adapter[req.data].status.inProcess = true;
 			status.adapter[req.data].status.status = response;
 			app.io.emit('status', status);
 			update(req.data, (error) => {
 				if(error == 200){
 					start(req.data, function(response){
+						status.adapter[req.data].status.inProcess = false;
 						status.adapter[req.data].status.status = response;
 						app.io.emit('status', status);
 					});
@@ -218,7 +220,14 @@ app.io.route('SwitchServer', {
 			for(var index in response.adapter) {
 				if(!status.adapter[index]){
 					status.adapter[index]							=	new adapterStatus(response.adapter[index], index);
+				}else{
+					response.adapter[index].name = index;
+					status.adapter[index].info = response.adapter[index];
+					if(response.adapter[index].version > status.adapter[index].status.installedVersion){
+						status.adapter[index].status.updateAvailable = true;
+					}
 				}
+
 			}
 			req.socket.emit('success');
 			adapter.log.info("Adapterliste geupdatet!");
@@ -662,13 +671,15 @@ function getAdapterList(callback) {
 function adapterStatus(info, name){
     info.name = name;
     return {
+    	"name": name,
         "info": info,
         "status": {
             status: undefined,
             pid: undefined,
             statusMessage: undefined,
             installedVersion: undefined,
-            updateAvailable: false
+            updateAvailable: false,
+            inProcess: false
         },
         "errors":[],
         "setError": function(err){
@@ -806,6 +817,11 @@ function update(name, callback){
 			callback(stderr);
 			return;
 		}
+		// neue Versionsnummer in die Einstellungen schreiben
+		status.adapter[name].settings.version = status.adapter[name].info.version;
+		status.adapter[name].status.updateAvailable = false;
+		saveSettings(status.adapter[name], (err) =>{});
+		app.io.emit('status', status);
 		adapter.log.info(stdout);
 		callback(200);
 	});
