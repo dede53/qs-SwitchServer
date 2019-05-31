@@ -9,8 +9,8 @@ var status					=	{};
 status.adapter 				=	{};
 var errors					=	[];
 var adapter                 =   {};
-adapter.settings            =   require('./settings/adapter.json');
-adapter.logFile				=	fs.createWriteStream( "./log/debug-adapter.log", {flags : 'w'});
+adapter.settings            =   require(__dirname + '/settings/adapter.json');
+adapter.logFile				=	fs.createWriteStream(__dirname + "/log/debug-adapter.log", {flags : 'w'});
 adapter.log = {
     "info": function(data, source){
         if(adapter.settings.loglevel == 1 ){
@@ -77,14 +77,18 @@ createDir(__dirname + "/log");
 createDir(__dirname + "/temp");
 createDir(__dirname + "/adapter");
 
-process.on('SIGINT', function(code){
-	app.io.emit("active", false);
+function terminate(code){
 	var list = Object.keys(plugins);
 	for (var i = 0; i < list.length; i++) {
 		stop(list[i], function(status){});
 	}
+	app.io.emit("active", false);
 	process.exit(1);
-});
+}
+
+process.on('SIGTERM', terminate);
+process.on('SIGINT', terminate);
+
 
 function createDir(name){
 	if(!fs.existsSync(name)){
@@ -302,7 +306,7 @@ return {
 
 function startAll(callback){
 	getAdapterList(function(data){
-		fs.readdir("./adapter",function(err, files){
+		fs.readdir(__dirname + "/adapter",function(err, files){
 			for(var index in data.adapter) {
 				status.adapter[index]							=	new adapterStatus(data.adapter[index], index);
 			}
@@ -486,12 +490,12 @@ function start(name, callback){
 					});
 				}
                 if(response.alert){
-                    request.delete('http://' + adapter.settings.QuickSwitch.ip + ':' + adapter.settings.QuickSwitch.port + '/alert/' + response.alert, function(error, response, body){
+                    request.delete('http://' + adapter.settings.QuickSwitch.ip + ':' + adapter.settings.QuickSwitch.port + '/alert/' + response.alert, function(error, res, body){
                         if(error){
                             adapter.log.error("Alert konnte nicht gelöscht werden!");
                             adapter.log.error(error);
                         }else{
-                            adapter.log.debug("Alert gelöscht!");
+                            adapter.log.debug("Alert gelöscht:" + response.alert);
                         }
                     });
                 }
