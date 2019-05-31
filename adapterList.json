@@ -50,7 +50,7 @@
 			"description":"Play files in Browser"
 		},
 		"webview":{
-			"version":"0.0.2",
+			"version":"0.0.31",
 			"description":"Visualisierung"
 		},
 		"telegram":{
