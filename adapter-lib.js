@@ -43,59 +43,59 @@ function main(param){
 			}
 		});
 	}
-	var that = this;
+	
 	this.log = {
-		"info": function(data){
-			if(that.settings.loglevel == 1 ){
+		"info": (data) => {
+			if(this.settings.loglevel == 1 ){
 				try{
 					if(typeof data === "object"){
 						var data = JSON.stringify(data);
 					}else{
 						var data = data.toString();
 					}
-					process.send({"info": data, "source": that.name});
+					process.send({"info": data, "source": this.name});
 				}catch(e){
 					console.log(e);
 				}
 			}
 		},
-		"debug": function(data){
-			if(that.settings.loglevel <= 2){
+		"debug": (data) => {
+			if(this.settings.loglevel <= 2){
 				try{
 					if(typeof data === "object"){
 						var data = JSON.stringify(data);
 					}else{
 						var data = data.toString();
 					}
-					process.send({"debug": data, "source": that.name});
+					process.send({"debug": data, "source": this.name});
 				}catch(e){}
 			}
 		},
-		"warning": function(data){
-			if(that.settings.loglevel <= 3){
+		"warning": (data) => {
+			if(this.settings.loglevel <= 3){
 				try{
 					if(typeof data === "object"){
 						var data = JSON.stringify(data);
 					}else{
 						var data = data.toString();
 					}
-					process.send({"warning": data, "source": that.name});
+					process.send({"warning": data, "source": this.name});
 				}catch(e){}
 			}
 		},
-		"error": function(data){
-			if(that.settings.loglevel <= 4){
+		"error": (data) => {
+			if(this.settings.loglevel <= 4){
 				try{
 					if(typeof data === "object"){
 						var data = JSON.stringify(data);
 					}else{
 						var data = data.toString();
 					}
-					process.send({"error": data, "source": that.name});
+					process.send({"error": data, "source": this.name});
 				}catch(e){}
 			}
 		},
-		"pure": function(data){
+		"pure": (data) => {
 			console.log(data);
 		}
     }
