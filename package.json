@@ -13,9 +13,9 @@
   "license": "ISC",
   "description": "SmartHome-Software",
   "dependencies": {
-    "async": "^2.1.2",
+    "async": "^3.2.0",
     "body-parser": "^1.15.2",
     "daemonize2": "^0.4.2",
-    "express.io": "^1.1.13"
+    "express.moi": "https://github.com/cwi-vvatsos/express.moi"
   }
 }

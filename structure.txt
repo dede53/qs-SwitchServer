@@ -1,0 +1,22 @@
+.
+├── adapter
+│   └──...
+├── adapterFunctions.js
+├── adapter.js
+├── adapter-lib.js
+├── adapterList.json
+├── allAdapter.js
+├── daemon.js
+├── log
+│   └──...
+├── newAdapter.js
+├── package.json
+├── package-lock.json
+├── README.md
+├── settings
+│   └──...
+├── structure.txt
+└── temp
+    └── adapterList.json
+
+29 directories, 129 files
