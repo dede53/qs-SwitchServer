@@ -18,7 +18,7 @@
     "daemonize2": "^0.4.2",
     "engine.io-client": "^3.4.3",
     "express.oi": "git+https://github.com/dede53/express.oi.git",
-    "socket.io": "^2.3.0",
+    "socket.io": "^2.5.0",
     "socket.io-client": "^2.3.0"
   }
 }
