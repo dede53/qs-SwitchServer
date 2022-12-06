@@ -14,7 +14,7 @@
   "description": "SmartHome-Software",
   "dependencies": {
     "async": "^3.2.0",
-    "body-parser": "^1.15.2",
+    "body-parser": "^1.20.1",
     "daemonize2": "^0.4.2",
     "engine.io-client": "^3.4.3",
     "express.oi": "git+https://github.com/dede53/express.oi.git",
